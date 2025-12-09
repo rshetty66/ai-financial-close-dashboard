@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Financial Close Dashboard - Interactive Live Demo</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #0a0e27 0%, #1a1f3a 100%);
+            color: #e0e6ed;
+            padding: 20px;
+            min-height: 100vh;
+        }
+        
+        .container { max-width: 1920px; margin: 0 auto; }
+        
+        header {
+            background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
+            padding: 40px;
+            border-radius: 16px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 40px rgba(59, 130, 246, 0.4);
+            text-align: center;
+            position: relative;
+        }
+        
+        header h1 {
+            font-size: 3rem;
+            font-weight: 800;
+            margin-bottom: 10px;
+        }
+        
+        .live-indicator {
+            position: absolute;
+            top: 20px;
+            right: 30px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: rgba(0,0,0,0.3);
+            padding: 10px 20px;
+            border-radius: 25px;
+        }
+        
+        .live-dot {
+            width: 12px;
+            height: 12px;
+            background: #10b981;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+            50% { opacity: 0.5; box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); }
+        }
+        
+        .highlight-metric {
+            text-align: center;
+            padding: 50px;
+            background: linear-gradient(135deg, #10b981 0%, #34d399 100%);
+            border-radius: 16px;
+            margin-bottom: 30px;
+            cursor: pointer;
+            transition: transform 0.3s;
+        }
+        
+        .highlight-metric:hover { transform: scale(1.02); }
+        
+        .big-number {
+            font-size: 6rem;
+            font-weight: 900;
+            color: white;
+        }
+        
+        .label {
+            font-size: 1.6rem;
+            color: white;
+            margin-top: 15px;
+        }
+        
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 350px 1fr 400px;
+            gap: 25px;
+            margin-bottom: 30px;
+        }
+        
+        .panel {
+            background: rgba(26, 31, 58, 0.95);
+            border-radius: 16px;
+            padding: 30px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+        }
+        
+        .panel h2 {
+            font-size: 1.5rem;
+            margin-bottom: 25px;
+            color: #60a5fa;
+            border-bottom: 3px solid #3b82f6;
+            padding-bottom: 12px;
+        }
+        
+        .entity-progress {
+            margin-bottom: 25px;
+            padding: 15px;
+            background: rgba(37, 45, 71, 0.5);
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .entity-progress:hover {
+            transform: translateX(5px);
+            background: rgba(37, 45, 71, 0.8);
+        }
+        
+        .entity-name {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+        
+        .progress-bar {
+            height: 12px;
+            background: #2d3748;
+            border-radius: 6px;
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #10b981, #34d399);
+            transition: width 1s ease;
+        }
+        
+        .at-risk { background: linear-gradient(90deg, #ef4444, #f87171) !important; }
+        
+        .variance-card {
+            background: linear-gradient(135deg, rgba(37, 45, 71, 0.9), rgba(30, 58, 138, 0.3));
+            padding: 25px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            border-left: 5px solid #3b82f6;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .variance-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(59, 130, 246, 0.3);
+        }
+        
+        .variance-card h3 {
+            font-size: 1.2rem;
+            margin-bottom: 12px;
+            color: #fbbf24;
+        }
+        
+        .variance-card .value {
+            font-size: 2.5rem;
+            font-weight: 800;
+            color: #10b981;
+        }
+        
+        .negative { color: #ef4444 !important; }
+        
+        .agent-log {
+            background: rgba(15, 23, 42, 0.8);
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 12px;
+            font-family: 'Courier New', monospace;
+            border-left: 4px solid #8b5cf6;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .agent-log:hover {
+            background: rgba(15, 23, 42, 1);
+            transform: translateX(5px);
+        }
+        
+        .timestamp { color: #6b7280; margin-right: 10px; }
+        .agent-name { color: #8b5cf6; font-weight: 800; }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.9);
+        }
+        
+        .modal-content {
+            background: linear-gradient(135deg, #1a1f3a 0%, #252d47 100%);
+            margin: 3% auto;
+            padding: 40px;
+            border: 2px solid #3b82f6;
+            border-radius: 20px;
+            width: 80%;
+            max-height: 85vh;
+            overflow-y: auto;
+        }
+        
+        .close {
+            color: #9ca3af;
+            float: right;
+            font-size: 40px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        
+        .close:hover { color: #ef4444; }
+        
+        .cta-button {
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+            color: white;
+            padding: 18px 35px;
+            border: none;
+            border-radius: 10px;
+            font-size: 1.15rem;
+            font-weight: 700;
+            cursor: pointer;
+            width: 100%;
+            transition: all 0.3s;
+        }
+        
+        .cta-button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 30px rgba(59, 130, 246, 0.7);
+        }
+        
+        .chart-container {
+            background: rgba(26, 31, 58, 0.95);
+            border-radius: 16px;
+            padding: 35px;
+            margin-bottom: 30px;
+        }
+        
+        .chart-container h2 {
+            color: #60a5fa;
+            margin-bottom: 25px;
+            font-size: 1.6rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="live-indicator">
+                <div class="live-dot"></div>
+                <span>LIVE</span>
+            </div>
+            <h1>🤖 AI-Powered Financial Close Dashboard</h1>
+            <p>Q1 2025 | Real-Time Agentic Automation | Executive Summary</p>
+            <p style="font-size: 0.9rem; margin-top: 10px;">
+                💡 Double-click cards for details | Click agent logs for info
+            </p>
+        </header>
+
+        <div class="highlight-metric" ondblclick="alert('TRANSFORMATION STORY:\\n\\nJan 2025: 9 days, 120 hours\\nJun 2025: 2 days, 18 hours\\n\\n✅ 78% faster\\n✅ $500K savings\\n✅ 85% AI resolution\\n✅ 98% accuracy\\n\\nROI: 325% Year 1')">
+            <div class="big-number">2 DAYS</div>
+            <div class="label">Close Duration (Down from 9 days) | 78% Improvement</div>
+        </div>
+
+        <div class="dashboard-grid">
+            <div class="panel">
+                <h2>📅 Close Timeline</h2>
+                
+                <div class="entity-progress" ondblclick="alert('RETAIL BANKING: 92% Complete\\n\\n✅ Journal Validation\\n✅ Reconciliation\\n✅ Variance Analysis\\n🔄 Commentary (in progress)\\n⏸️ Final Review\\n\\nETA: 4 hours')">
+                    <div class="entity-name">
+                        <span>Retail Banking</span>
+                        <span>92%</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: 92%"></div>
+                    </div>
+                </div>
+
+                <div class="entity-progress" ondblclick="alert('WEALTH MANAGEMENT: 88% Complete\\n\\n✅ Journal Validation\\n✅ Reconciliation\\n✅ Variance Analysis\\n🔄 Commentary (in progress)\\n⏸️ Final Review')">
+                    <div class="entity-name">
+                        <span>Wealth Management</span>
+                        <span>88%</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: 88%"></div>
+                    </div>
+                </div>
+
+                <div class="entity-progress" ondblclick="alert('CAPITAL MARKETS: 95% Complete\\n\\n✅ All tasks complete\\n🔄 Final review in progress')">
+                    <div class="entity-name">
+                        <span>Capital Markets</span>
+                        <span>95%</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: 95%"></div>
+                    </div>
+                </div>
+
+                <div class="entity-progress" ondblclick="alert('CORPORATE: 65% Complete - AT RISK\\n\\n✅ Journal Validation\\n⚠️ FX Reclass Issue ($142K)\\n⏸️ Pending manual review\\n\\nAgent escalated to finance team')">
+                    <div class="entity-name">
+                        <span>Corporate</span>
+                        <span>65% ⚠️</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill at-risk" style="width: 65%"></div>
+                    </div>
+                </div>
+
+                <div class="entity-progress" ondblclick="alert('INTERNATIONAL: 90% Complete\\n\\n✅ Most tasks complete\\n🔄 Final commentary being generated')">
+                    <div class="entity-name">
+                        <span>International</span>
+                        <span>90%</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: 90%"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel">
+                <h2>📈 Variance Summary</h2>
+                
+                <div class="variance-card" ondblclick="showMDAModal()">
+                    <h3>Net Interest Income</h3>
+                    <div class="value">+$170M</div>
+                    <p style="color: #9ca3af; margin-top: 12px;">
+                        <strong>+5.7%</strong> vs PY | Volume +$95M, FX +$42M, Margin +$33M
+                    </p>
+                </div>
+
+                <div class="variance-card" ondblclick="alert('OPERATING EXPENSES: +$145M (+5.6%)\\n\\nBreakdown:\\n• Tech investments: $78M\\n• Compliance: $42M\\n• Compensation: $35M\\n• Offset by automation: -$10M\\n\\nManagement action: Efficiency program targeting 3% reduction')">
+                    <h3>Operating Expenses</h3>
+                    <div class="value negative">+$145M</div>
+                    <p style="color: #9ca3af; margin-top: 12px;">
+                        <strong>+5.6%</strong> vs PY | Tech $78M, Compliance $42M
+                    </p>
+                </div>
+
+                <div class="variance-card" ondblclick="alert('CET1 RATIO: 12.8% (+50 bps)\\n\\n✅ Well above regulatory minimum (11.0%)\\n✅ Strong organic capital generation\\n✅ RWA optimization initiatives\\n\\nOutlook: Maintain above 12.5%')">
+                    <h3>CET1 Ratio</h3>
+                    <div class="value">12.8%</div>
+                    <p style="color: #9ca3af; margin-top: 12px;">
+                        <strong>+50 bps</strong> | Strong capital position
+                    </p>
+                </div>
+
+                <button class="cta-button" onclick="showMDAModal()">
+                    📄 View MD&A Commentary →
+                </button>
+            </div>
+
+            <div class="panel">
+                <h2>🤖 Live Agent Activity</h2>
+                
+                <div id="agentLogs"></div>
+
+                <button class="cta-button" onclick="refreshLogs()" style="margin-top: 15px;">
+                    🔄 Refresh Stream
+                </button>
+            </div>
+        </div>
+
+        <div class="chart-container">
+            <h2>📊 Close Duration - AI Impact</h2>
+            <canvas id="chart1" height="80"></canvas>
+        </div>
+
+        <div class="chart-container">
+            <h2>🔍 AI Resolution Rate Trend</h2>
+            <canvas id="chart2" height="80"></canvas>
+        </div>
+    </div>
+
+    <div id="mdaModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal()">&times;</span>
+            <h2 style="color: #60a5fa;">📄 MD&A Commentary - Q1 2025</h2>
+            
+            <h3 style="color: #fbbf24; margin-top: 30px;">Net Interest Income Analysis</h3>
+            <p style="line-height: 1.8; font-size: 1.1rem;">
+                Net interest income increased by <strong>$170M (5.7%)</strong> compared to Q1 2024, driven by:
+            </p>
+            <ul style="margin-left: 30px; line-height: 2; font-size: 1.05rem;">
+                <li><strong>Volume Growth (+$95M):</strong> Loan expansion in Retail Banking</li>
+                <li><strong>FX Impact (+$42M):</strong> Favorable CAD/USD movements</li>
+                <li><strong>Margin Expansion (+$33M):</strong> Improved deposit mix</li>
+                <li><strong>Rate Compression (-$12M):</strong> Competitive pressure</li>
+            </ul>
+            
+            <h3 style="color: #fbbf24; margin-top: 30px;">Management Outlook</h3>
+            <p style="line-height: 1.8; font-size: 1.1rem;">
+                NII expected to remain robust in Q2 2025. PCL trends normalizing. Operating leverage initiatives targeting 3% improvement by year-end.
+            </p>
+            
+            <button class="cta-button" onclick="alert('Export functionality: Would export to Word/PDF/Email')" style="margin-top: 30px; width: auto; padding: 15px 30px;">
+                📥 Export Report
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // Initialize agent logs
+        const logs = [
+            {time: '08:42:15', agent: 'CloseOrchestrator', msg: 'Monitored 5 entities. 4 on track, 1 at risk.'},
+            {time: '08:43:02', agent: 'ReconciliationAgent', msg: 'Detected 12 IC mismatches. Auto-resolved 10 (83%).'},
+            {time: '08:43:58', agent: 'VarianceDetection', msg: 'Flagged 5 material variances. NII +5.7%, PCL +16.3%.'},
+            {time: '08:45:22', agent: 'CommentaryAgent', msg: 'Generated MD&A for 7 key variances.'},
+            {time: '08:46:10', agent: 'CloseOrchestrator', msg: 'Corporate escalated. FX reclass $142K.'},
+            {time: '08:47:35', agent: 'ReconciliationAgent', msg: 'Resolved 2 escalations. Match rate: 100%.'}
+        ];
+        
+        function renderLogs() {
+            const container = document.getElementById('agentLogs');
+            container.innerHTML = logs.map(log => `
+                <div class="agent-log" onclick="alert('AGENT DETAIL:\\n\\nAgent: ${log.agent}\\nTime: ${log.time}\\nMessage: ${log.msg}\\n\\nStatus: Active\\nSuccess Rate: 95%')">
+                    <span class="timestamp">${log.time}</span>
+                    <span class="agent-name">${log.agent}:</span> ${log.msg}
+                </div>
+            `).join('');
+        }
+        
+        function refreshLogs() {
+            const newTime = new Date().toLocaleTimeString('en-US', {hour12: false});
+            logs.unshift({time: newTime, agent: 'CloseOrchestrator', msg: 'Refresh complete. All systems operational.'});
+            if (logs.length > 8) logs.pop();
+            renderLogs();
+        }
+        
+        function showMDAModal() {
+            document.getElementById('mdaModal').style.display = 'block';
+        }
+        
+        function closeModal() {
+            document.getElementById('mdaModal').style.display = 'none';
+        }
+        
+        // Initialize
+        renderLogs();
+        
+        // Chart 1: Close Duration
+        new Chart(document.getElementById('chart1'), {
+            type: 'bar',
+            data: {
+                labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+                datasets: [{
+                    label: 'Close Days',
+                    data: [9, 8, 6, 4, 3, 2],
+                    backgroundColor: ['#ef4444', '#f59e0b', '#fbbf24', '#3b82f6', '#22c55e', '#10b981']
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: { beginAtZero: true, max: 10, ticks: {color: '#9ca3af'}, grid: {color: 'rgba(156,163,175,0.15)'} },
+                    x: { ticks: {color: '#9ca3af'}, grid: {color: 'rgba(156,163,175,0.15)'} }
+                },
+                plugins: { legend: { labels: {color: '#e0e6ed'} } }
+            }
+        });
+        
+        // Chart 2: AI Resolution
+        new Chart(document.getElementById('chart2'), {
+            type: 'line',
+            data: {
+                labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+                datasets: [{
+                    label: 'AI Resolution Rate (%)',
+                    data: [30, 45, 58, 68, 78, 85],
+                    borderColor: '#10b981',
+                    backgroundColor: 'rgba(16,185,129,0.1)',
+                    fill: true,
+                    tension: 0.4
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: { beginAtZero: true, max: 100, ticks: {color: '#9ca3af'}, grid: {color: 'rgba(156,163,175,0.15)'} },
+                    x: { ticks: {color: '#9ca3af'}, grid: {color: 'rgba(156,163,175,0.15)'} }
+                },
+                plugins: { legend: { labels: {color: '#e0e6ed'} } }
+            }
+        });
+        
+        // Close modal on outside click
+        window.onclick = function(event) {
+            const modal = document.getElementById('mdaModal');
+            if (event.target == modal) modal.style.display = "none";
+        }
+    </script>
+</body>
+</html>
